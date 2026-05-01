@@ -1,3 +1,6 @@
 # Local git metadata fallback used by this Windows/Codex environment.
 .git/
 .gitdata/
+
+# Local market data is large and machine-specific.
+data/
