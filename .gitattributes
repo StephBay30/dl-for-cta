@@ -1,0 +1,12 @@
+# Keep text files consistent across Windows and Linux.
+* text=auto eol=lf
+
+# Treat research papers and other binary assets as binary.
+*.pdf binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.zip binary

@@ -1,0 +1,3 @@
+# Local git metadata fallback used by this Windows/Codex environment.
+.git/
+.gitdata/
