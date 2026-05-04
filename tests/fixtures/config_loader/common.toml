@@ -1,0 +1,12 @@
+[data]
+min_bar_root = "x"
+symbols = ["a", "b"]
+start_date = "2020-01-01"
+end_date = "2020-01-02"
+
+[model]
+hidden_size = 64
+dropout = 0.2
+
+[outputs]
+root = "outputs"

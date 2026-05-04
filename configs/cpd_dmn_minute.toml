@@ -1,0 +1,36 @@
+base = "common.toml"
+
+[cpd]
+windows = [60, 240, 1200]
+max_optimizer_iter = 100
+
+[model]
+sequence_length = 63
+hidden_size = 64
+dropout = 0.2
+target_horizons = [1, 5, 30]
+target_weights = [0.333333, 0.333333, 0.333334]
+
+[threshold]
+initial_value = 0.05
+
+[training]
+first_train_end = "2019-12-31"
+validation_start = "2020-01-01"
+validation_end = "2020-12-31"
+first_test_start = "2021-01-01"
+epochs = 100
+early_stopping_patience = 10
+learning_rate = 0.001
+turnover_penalty = 0.0
+
+[search]
+learning_rate = [0.001]
+hidden_size = [64]
+dropout = [0.2]
+sequence_length = [63]
+threshold_initial_value = [0.05]
+turnover_penalty = [0.0]
+
+[outputs]
+experiment_name = "gp_cpd_dmn_minute"

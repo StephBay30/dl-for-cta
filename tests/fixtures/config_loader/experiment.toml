@@ -1,0 +1,7 @@
+base = "common.toml"
+
+[model]
+hidden_size = 128
+
+[outputs]
+experiment_name = "merged"

@@ -1,0 +1,8 @@
+[data]
+min_bar_root = "x"
+symbols = ["a"]
+start_date = "2020-01-01"
+end_date = "2020-01-02"
+
+[outputs]
+experiment_name = "single_file"

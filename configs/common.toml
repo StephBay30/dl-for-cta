@@ -1,0 +1,85 @@
+[project]
+name = "a_share_index_minute_gp_cpd_dmn"
+seed = 42
+device = "cuda"
+
+[data]
+min_bar_root = "E:/quant/lyquant/short_arb_firm/data/min_bar"
+symbols = ["000016.XSHG", "000300.XSHG", "000905.XSHG", "000852.XSHG"]
+start_date = "2015-01-05"
+end_date = "2026-04-29"
+n_min_bar = 1
+datetime_col = "datetime"
+price_col = "close"
+open_col = "open"
+volume_col = "volume"
+turnover_col = "total_turnover"
+
+[features]
+return_windows = [1, 5, 15, 30, 60, 120, 240]
+vol_windows = [30, 60, 240]
+volume_z_windows = [240, 1200]
+use_time_of_day = true
+use_macd = true
+macd_pairs = [[8, 24], [16, 48], [32, 96]]
+
+[cpd]
+enabled = true
+method = "gp_sigmoid_changepoint"
+windows = [60, 240, 1200]
+kernel = "matern32"
+standardize_window = true
+cache_dir = "cache/cpd"
+resume = true
+min_valid_points = 30
+max_optimizer_iter = 100
+fallback = "previous_value"
+
+[model]
+name = "dmn_lstm"
+sequence_length = 63
+hidden_size = 64
+num_layers = 1
+dropout = 0.2
+target_horizons = [1, 5, 30]
+target_weights = [0.333333, 0.333333, 0.333334]
+position_activation = "tanh"
+
+[threshold]
+enabled = true
+learnable = true
+shared_across_symbols = true
+initial_value = 0.05
+min_value = 0.0
+max_value = 1.0
+train_gate = "soft"
+backtest_gate = "hard"
+
+[training]
+split = "expanding_window"
+train_start = "2015-01-05"
+first_train_end = "2019-12-31"
+validation_start = "2020-01-01"
+validation_end = "2020-12-31"
+first_test_start = "2021-01-01"
+test_window_years = 1
+expand_by_years = 1
+batch_size = 256
+epochs = 100
+early_stopping_patience = 10
+learning_rate = 0.001
+weight_decay = 0.0
+loss = "negative_sharpe_with_turnover"
+turnover_penalty = 0.0
+
+[backtest]
+execution_lag_minutes = 1
+cost_bps_single_side = 5.0
+portfolio_weighting = "equal"
+annualization_minutes = 240
+save_positions = true
+save_equity_curve = true
+
+[outputs]
+root = "outputs"
+save_config_snapshot = true

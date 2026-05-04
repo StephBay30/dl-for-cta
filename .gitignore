@@ -3,4 +3,15 @@
 .gitdata/
 
 # Local market data is large and machine-specific.
-data/
+/data/
+
+# Local research artifacts.
+cache/
+outputs/
+
+# Python artifacts.
+__pycache__/
+.pytest_cache/
+pytest-cache-files-*/
+*.py[cod]
+.venv/

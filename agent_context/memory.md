@@ -25,21 +25,23 @@ This repository is intended to collect and organize materials related to CTA, de
 - Store project memory in Markdown files inside `agent_context/`.
 - Use LF line endings for text files so the repository behaves consistently on Windows and Linux.
 - Ignore local git metadata directories via `.gitignore`.
+- Implement the A-share index minute framework directly, not a daily futures v1.
+- Use TOML as the experiment parameter interface and expose CLI commands through `python -m dl_for_cta.cli`.
+- Implement CPD with the paper's Matérn 3/2 GP versus sigmoid changepoint GP, not a statistical proxy.
+- Use a strict train/validation/test workflow: train on the configured train range, select the best
+  epoch and TOML grid-search candidate by validation after-cost Sharpe, then run test once from
+  `first_test_start` using `best_model.pt`.
+- Long-running CLI stages must use structured logging for start/finish, row counts, CPD progress,
+  training epoch metrics, validation Sharpe, selected checkpoints, and backtest outputs.
 
 ## TODO
 
 - Finish initializing the local git repository and push it to GitHub.
 - Consider adding a README that explains the project purpose and paper organization.
 - Consider adding metadata for papers, such as title, topic, source, year, and notes.
-- Reproduce Wood, Roberts, and Zohren (2022), "Slow Momentum with Fast Reversion":
-  start from the author's `trading-momentum-transformer` repository for the full DMN/LSTM
-  experiment implementation, because `slow-momentum-fast-reversion` mainly exposes the CPD module.
-  Data path is Nasdaq Data Link/Quandl CHRIS continuous futures for practical reproduction; original
-  paper used 50 Pinnacle CLC continuous futures over 1990-2020 with 1995-2020 expanding-window tests.
-- Build a new A-share index minute-level DMN/CPD research framework. First implementation should
-  target CUDA-capable machines and use the local minute parquet data, not the old TensorFlow/GPflow
-  reproduction stack. Start with data loading, minute feature generation, baselines, minute backtest,
-  then PyTorch LSTM/DMN and CPD features.
+- Build out performance optimizations for GP-CPD, including better parallelism and shard-level scheduling.
+- Add stronger baseline strategies and expanding-window experiment orchestration.
+- Extend the current single train/valid/test split into true multi-window expanding evaluation.
 
 ## Notes
 
@@ -50,10 +52,11 @@ This repository is intended to collect and organize materials related to CTA, de
   `cp_rl_{LBW}` into the LSTM. LSTM sequence length is 63, target return is volatility-scaled next-day
   return, objective is negative annualized Sharpe. Paper reports best CPD LBWs around 21/63 days and
   optimized LBW Sharpe about 2.16 vs LSTM 1.62 on raw signal, before transaction costs.
-- Planned A-share framework: use only continuous index data first, excluding index futures because
+- A-share framework: use only continuous index data first, excluding index futures because
   futures contracts are discontinuous. Default symbols are `000016.XSHG`, `000300.XSHG`,
-  `000905.XSHG`, and `000852.XSHG`. Data lives in `data/min_bar` and `data/day_bar`; system Python
-  3.12.10 has `pyarrow`, `torch`, `sklearn`, `pandas`, and `numpy`.
+  `000905.XSHG`, and `000852.XSHG`. Minute data lives in
+  `E:\quant\lyquant\short_arb_firm\data\min_bar`; system Python has `pyarrow`, `torch`, `scipy`,
+  `pandas`, and `numpy`.
 - Minute strategy design: model emits one target position per minute per index, each in `[-1, 1]`.
   Each index is predicted independently and the portfolio aggregates indices equally. Positions may
   be held overnight. Signal at minute `t` trades at the next minute open to avoid current-bar lookahead.
