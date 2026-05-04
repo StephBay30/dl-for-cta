@@ -31,6 +31,7 @@ kernel = "matern32"
 standardize_window = true
 cache_dir = "cache/cpd"
 resume = true
+n_jobs = 4 
 min_valid_points = 30
 max_optimizer_iter = 100
 fallback = "previous_value"

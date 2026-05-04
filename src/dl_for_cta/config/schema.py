@@ -45,9 +45,14 @@ class CpdConfig:
     standardize_window: bool = True
     cache_dir: str = "cache/cpd"
     resume: bool = True
+    n_jobs: int = 1
     min_valid_points: int = 30
     max_optimizer_iter: int = 100
     fallback: str = "previous_value"
+
+    def __post_init__(self) -> None:
+        if self.n_jobs < 1:
+            raise ValueError(f"cpd.n_jobs must be >= 1, got {self.n_jobs}.")
 
 
 @dataclass(frozen=True)

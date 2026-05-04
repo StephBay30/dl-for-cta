@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 import logging
 from pathlib import Path
 
@@ -30,6 +31,14 @@ def cpd_feature_path(config: ExperimentConfig) -> Path:
     return feature_cache_dir(config) / "cpd_features.parquet"
 
 
+def cpd_shard_dir(config: ExperimentConfig, symbol: str) -> Path:
+    return ensure_dir(Path(config.cpd.cache_dir) / config.outputs.experiment_name / symbol)
+
+
+def cpd_shard_path(config: ExperimentConfig, symbol: str, window: int) -> Path:
+    return cpd_shard_dir(config, symbol) / f"window_{window}.parquet"
+
+
 def build_and_save_basic_features(config: ExperimentConfig) -> Path:
     logger.info("Building basic features experiment=%s", config.outputs.experiment_name)
     bars = load_minute_bars(config.data)
@@ -49,18 +58,79 @@ def load_basic_features(config: ExperimentConfig) -> pd.DataFrame:
     return pd.read_parquet(path)
 
 
+def _thin_cpd_input(frame: pd.DataFrame) -> pd.DataFrame:
+    return frame[["order_book_id", "datetime", "close"]].copy()
+
+
+def _cpd_shard_columns(window: int) -> list[str]:
+    return [*KEY_COLUMNS, f"cp_score_{window}", f"cp_loc_{window}"]
+
+
+def _valid_cpd_shard(shard: pd.DataFrame, expected_keys: pd.DataFrame, window: int) -> bool:
+    cols = _cpd_shard_columns(window)
+    if any(col not in shard.columns for col in cols):
+        return False
+    if len(shard) != len(expected_keys):
+        return False
+    actual_keys = shard[KEY_COLUMNS].reset_index(drop=True)
+    return actual_keys.equals(expected_keys.reset_index(drop=True))
+
+
+def _load_or_build_cpd_shard(frame: pd.DataFrame, config: ExperimentConfig, symbol: str, window: int) -> pd.DataFrame:
+    path = cpd_shard_path(config, symbol, window)
+    cols = _cpd_shard_columns(window)
+    expected_keys = frame[KEY_COLUMNS].reset_index(drop=True)
+
+    if config.cpd.resume and path.exists():
+        try:
+            shard = pd.read_parquet(path)
+        except Exception as exc:  # noqa: BLE001
+            logger.warning(
+                "[cpd] shard unreadable; rebuilding symbol=%s window=%d path=%s error=%s",
+                symbol,
+                window,
+                path,
+                exc,
+            )
+        else:
+            if _valid_cpd_shard(shard, expected_keys, window):
+                logger.info("[cpd] resume hit symbol=%s window=%d path=%s", symbol, window, path)
+                return shard[cols]
+            logger.warning("[cpd] shard invalid; rebuilding symbol=%s window=%d path=%s", symbol, window, path)
+
+    logger.info("[cpd] shard build symbol=%s window=%d rows=%d path=%s", symbol, window, len(frame), path)
+    shard_config = replace(config.cpd, windows=[window])
+    shard = build_cpd_features_for_symbol(frame, shard_config, symbol=symbol)
+    shard = shard[cols]
+    shard.to_parquet(path, index=False)
+    logger.info("[cpd] shard saved symbol=%s window=%d rows=%d path=%s", symbol, window, len(shard), path)
+    return shard
+
+
 def build_and_save_cpd_features(config: ExperimentConfig) -> list[Path]:
-    logger.info("Building CPD features experiment=%s windows=%s", config.outputs.experiment_name, config.cpd.windows)
+    logger.info(
+        "Building CPD features experiment=%s windows=%s n_jobs=%d",
+        config.outputs.experiment_name,
+        config.cpd.windows,
+        config.cpd.n_jobs,
+    )
     basic = load_basic_features(config)
     cpd_frames = []
+    paths = []
     for symbol, frame in basic.groupby("order_book_id", sort=False):
         logger.info("Building CPD features symbol=%s rows=%d", symbol, len(frame))
-        cpd_frames.append(build_cpd_features_for_symbol(frame, config.cpd, symbol=str(symbol)))
+        cpd_input = _thin_cpd_input(frame).sort_values("datetime").reset_index(drop=True)
+        symbol_cpd = cpd_input[KEY_COLUMNS].copy()
+        for window in config.cpd.windows:
+            shard = _load_or_build_cpd_shard(cpd_input, config, str(symbol), window)
+            symbol_cpd = symbol_cpd.merge(shard, on=KEY_COLUMNS, how="left")
+        cpd_frames.append(symbol_cpd)
     cpd = pd.concat(cpd_frames, ignore_index=True)
     out = cpd_feature_path(config)
     cpd.to_parquet(out, index=False)
+    paths.append(out)
     logger.info("Saved CPD features rows=%d cols=%d path=%s", len(cpd), len(cpd.columns), out)
-    return [out]
+    return paths
 
 
 def _cpd_columns_for_windows(frame: pd.DataFrame, windows: list[int], path: Path) -> list[str]:
